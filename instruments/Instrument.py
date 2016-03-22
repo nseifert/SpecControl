@@ -102,9 +102,3 @@ class Instrument(object):
             raise MissingParameterError('Missing required parameter',
                                         'IP Address Missing. Use ip_addr as keyword argument')
 
-rm = visa.ResourceManager()
-print rm.list_resources()
-# QC = Instrument(ip_addr="192.168.1.101", name='QC9520 Pulse Gen')
-test = Instrument(ip_addr="TCPIP0::192.168.1.102::inst0::INSTR", name='AWG7112C')
-test.query("*IDN?")
-
