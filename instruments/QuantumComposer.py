@@ -71,5 +71,5 @@ if __name__ == '__main__':
                           ]
                 }
 
-    QC = QuantumComposer(ip_addr="192.168.1.101", name='QC9520 Pulse Gen', channels=channels)
+    QC = QuantumComposer(ip_addr="192.168.1.101", name='QC9520 Pulse Gen', channels=channels, connect_raw=1)
     QC.print_log()

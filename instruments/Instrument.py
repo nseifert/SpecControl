@@ -14,13 +14,18 @@ class MissingParameterError(Exception):
 
 class Instrument(object):
 
-    def connect(self, ip, name):
+    def connect(self, ip, name, raw=0):
         rm = visa.ResourceManager()
         try:
-            print 'Attempting connection to... "TCPIP0::%s::2001::SOCKET"' %ip
-            inst = rm.open_resource("TCPIP0::%s::2001::SOCKET" %ip, write_termination='\r\n', read_termination='\r\n')
+            if raw == 1:
+                print 'Attempting connection to... "TCPIP0::%s::2001::SOCKET"' %ip
+                inst = rm.open_resource("TCPIP0::%s::2001::SOCKET" %ip,
+                                        write_termination='\r\n', read_termination='\r\n')
+            else:
+                inst = rm.open_resource(ip)
+
         except VisaIOError:
-            print 'Problem with connection'
+            print 'Problem with connection to %s' %name
             raise
         else:
             inst.timeout = 10000
@@ -80,7 +85,7 @@ class Instrument(object):
     def __init__(self, **kwargs):
 
         self.log = []
-        required_keys = ['ip_addr', 'name']
+        required_keys = ['ip_addr', 'name', 'connect_raw']
 
         for k in kwargs.keys():
             if k in required_keys:
@@ -88,18 +93,18 @@ class Instrument(object):
 
         if 'name' not in self.__dict__.keys():
             self.name = 'Default'
+        if 'connect_raw' not in self.__dict__.keys():
+            self.connect_raw = 0
 
         try:
-            self.instrument = self.connect(self.ip_addr, self.name)
+            self.instrument = self.connect(self.ip_addr, self.name, raw=self.connect_raw)
         except AttributeError:
             raise MissingParameterError('Missing required parameter',
                                         'IP Address Missing. Use ip_addr as keyword argument')
 
-
+rm = visa.ResourceManager()
+print rm.list_resources()
 # QC = Instrument(ip_addr="192.168.1.101", name='QC9520 Pulse Gen')
+test = Instrument(ip_addr="TCPIP0::192.168.1.102::inst0::INSTR", name='AWG7112C')
+test.query("*IDN?")
 
-# print QC.query(":PULSE1:WIDT?")
-# QC.execute(":PULSe2:STATe ON")
-# QC.execute(":PULSe2:WIDTh 0.0001")
-# QC.execute(":PULSe2:DELay 0.05")
-# QC.execute(":PULSe1:STATe ON")
