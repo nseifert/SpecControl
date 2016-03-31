@@ -1,8 +1,9 @@
 import numpy as np
+from datetime import datetime
 
 class ArbPulse(object):
 
-    def generate_pulse(self):
+    def genpulse(self):
 
         def chirp(t, v_min, v_max, chirp_len):
             return np.cos(v_min*t + 0.5*(v_max-v_min)/chirp_len*t**2)
@@ -41,6 +42,24 @@ class ArbPulse(object):
 
         return pulse
 
+    def genfilename(self):
+        t_mults = {str(1.0E-6): 'us', str(1.0E-9): 'ns', str(1.0E-3): 'ms', str(1.0):'s'}
+        f_mults = {str(1.0E6): 'MHz', str(1.0E9): 'GHz', str(1.0E3): 'kHz', str(1.0): 'Hz'}
+
+        name = '{:%Y-%m-%d}'.format(datetime.utcnow())
+
+        name += '_{:.1f}-{:.1f}{}'.format(self.chirp_freq[0], self.chirp_freq[1], f_mults[str(self.freq_multiplier)])
+        name += '_{:.2f}{}_chirp'.format(self.chirp_len, t_mults[str(self.time_multiplier)])
+        name += '_{:.0f}{}_len_{:d}frames.txt'.format(self.total_len, t_mults[str(self.time_multiplier)], self.frames)
+
+        return name
+
+    def get_params(self):
+        return {i: self.__dict__[i] for i in self.__dict__ if i != 'pulse'}
+
+    def __repr__(self):
+        return str(self.get_params)
+
     def __init__(self, **kwargs):
 
         req_defaults = {'s_rate': 12.0E9,   # Sample Rate
@@ -60,7 +79,8 @@ class ArbPulse(object):
 
                         'mk2': False,  # Same as mk1
                         'mk2_len': 0.5,
-                        'mk2_chirp_gap': 0.1 # Gap between end of pulse and marker 2
+                        'mk2_chirp_gap': 0.1, # Gap between end of pulse and marker 2
+
                         }
 
         for k in kwargs.keys():
@@ -72,5 +92,10 @@ class ArbPulse(object):
         for k in set(req_defaults.keys())-set(kwargs.keys()):  # Restore defaults for required keywords not in kwargs
             self.__setattr__(k, req_defaults[k])
 
-        self.pulse = self.generate_pulse()
+        self.pulse = self.genpulse()
+
+        if 'filename' not in kwargs.keys():
+            self.filename = self.genfilename()
+        else:
+            self.filename = kwargs['filename']
 
