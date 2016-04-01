@@ -1,10 +1,14 @@
+import os
+import sys
+
 from Instrument import Instrument, MissingParameterError
-from ..data_obj import ArbPulse
+from ..data_obj.ArbPulse import ArbPulse
 import visa
 import pyvisa.errors
+import numpy as np
 import paramiko
-import os
 import collections
+import tempfile
 
 class AWG(Instrument):
     """
@@ -21,15 +25,24 @@ class AWG(Instrument):
                 return open(path, 'r').read().strip()
             else:
                 return path
+        rsa_key = paramiko.RSAKey.from_private_key_file(filename=self.key_path, password=read_pass(self.rsa_pass))
 
-        _pkey = paramiko.RSAKey(filename=self.key_path, password=read_pass(self.rsa_pass))
-        _transport = paramiko.Transport(sock=(self.ip_addr, 22))
-        _transport.connect(hostkey=None, username="OEM", pkey=self._pkey)
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname=self.ip_addr, username='OEM', port=22, pkey=rsa_key, look_for_keys=False)
 
-        return _transport
+        return ssh, ssh.open_sftp()
 
     def upload_pulse(self, sock, pulse):
-        pass
+
+        local_file = os.path.abspath('C:\\Users\\jaeger\\AppData\\Local\\Temp\\'+pulse.filename)
+        np.savetxt(local_file, pulse.pulse, delimiter='\t')
+        remote_path = os.path.abspath('C:\Pulses\\'+pulse.filename)
+
+        result = sock.put(local_file, remote_path)
+        os.remove(local_file)
+
+        return remote_path
 
     def get_pulses(self):
         return self._pulses
@@ -39,7 +52,7 @@ class AWG(Instrument):
         if 'visa_connect' in kwargs.keys():
             super(AWG, self).__init__(**kwargs)
 
-        acceptable_kwargs = ['ip_addr', 'key_path', 'pass_path', 'pulse', 'local_pulse', 'remote_pulse']
+        acceptable_kwargs = ['ip_addr', 'key_path', 'pass_path', 'pulse', 'local_pulse', 'remote_pulse', 'rsa_pass']
         for k in kwargs.keys():
             if k in acceptable_kwargs:
                 self.__setattr__(k, kwargs[k])
@@ -54,12 +67,11 @@ class AWG(Instrument):
 
         def get_iterable(obj):  # Helper function to process multiple pulses below
             if isinstance(obj, collections.Iterable) and not isinstance(x, basestring):
-                return x
+                return obj
             else:
-                return (x,)
+                return (obj,)
 
         conditions = [x in self.__dict__ for x in ['pulse', 'local_pulse', 'remote_pulse']]
-
         if sum(map(bool, conditions)) == 0:
             raise MissingParameterError("A pulse object or path was not specified.")
 
@@ -67,25 +79,24 @@ class AWG(Instrument):
             raise MissingParameterError("Please specify at most one pulse attribute during initialization.")
 
         else:
-            if 'pulse' in self.__dict__:  # Process ArbPulse object(s)
-                self._transport = self.connect_sftp()
-
+            print 'Init SFTP socket...'
+            self.__sshclient, self.__transport = self.connect_sftp()
+            print 'SFTP init successful.'
+            try:
                 for pul in get_iterable(self.pulse):
-                    self._pulses = []
-                    try:
-                        self.upload_pulse(self._transport, pul)
-                    except:
-                        raise
-                    else:
-                        self._pulses.append(repr(pul))
+                    self.pulse_log = []
+                    print 'Uploading pulse...'
+                    res = self.upload_pulse(self.__transport, pul)
+                    print 'Upload successful.'
+                    self.pulse_log.append([res, repr(pul)])
 
-            elif 'local_pulse' in self.__dict__: # Process ASCII pulse file(s) locally
-                self._transport = self.connect_sftp()
+            except AttributeError:
+                raise
 
-            else:  # Select pulse already on AWG. Should check for passing remote pulses here
-                pass
+            self.__transport.close()
 
-key_path = os.path.abspath('C:\\Users\\jaeger\\.ssh\\id_rsa')
-pass_path = os.path.abspath('C:\\Users\\jaeger\\Desktop\\SpecControl\sec\pass.pass')
-AWG(ip_addr='192.168.1.102', key_path=key_path, rsa_pass=pass_path)
-
+            # elif 'local_pulse' in self.__dict__:  # Process ASCII pulse file(s) locally
+            #     self._transport = self.connect_sftp()
+            #
+            # else:  # Select pulse already on AWG. Should check for passing remote pulses here
+            #     pass

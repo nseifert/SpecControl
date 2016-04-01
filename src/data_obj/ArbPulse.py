@@ -1,6 +1,7 @@
 import numpy as np
 from datetime import datetime
 
+
 class ArbPulse(object):
 
     def genpulse(self):
@@ -55,10 +56,10 @@ class ArbPulse(object):
         return name
 
     def get_params(self):
-        return {i: self.__dict__[i] for i in self.__dict__ if i != 'pulse'}
+        return {k: v for k,v in self.__dict__.iteritems() if k != 'pulse'}
 
     def __repr__(self):
-        return str(self.get_params)
+        return str(self.get_params())
 
     def __init__(self, **kwargs):
 
