@@ -1,13 +1,9 @@
 import os
-import sys
 from Instrument import *
 from ..data_obj.ArbPulse import ArbPulse
-import visa
-import pyvisa.errors
 import numpy as np
 import paramiko
 import collections
-import tempfile
 
 class AWG(Instrument):
     """
