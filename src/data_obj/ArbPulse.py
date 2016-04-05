@@ -68,6 +68,8 @@ class ArbPulse(object):
                         'freq_multiplier': 1.0E6,  # MHz
                         'frames': 1,  # Number of frames
 
+                        'channel': 1,  # ARB channel the pulse is meant for
+
                         'chirp_freq': [1000.0, 3000.0],  # Frequency bounds of chirp
                         'chirp_len': 4.0, # Length of chirp in units of time_multiplier
 

@@ -12,23 +12,35 @@ class MissingParameterError(Exception):
 
         super(MissingParameterError, self).__init__(message, errors, *args)
 
+class IllegalParameterError(Exception):
+    def __init__(self, message, errors, *args):
+
+        self.message = message
+        self.errors = errors
+
+        super(MissingParameterError, self).__init__(message, errors, *args)
+
 class Instrument(object):
 
-    def connect(self, ip, name, raw=0):
+    def connect(self, ip, name, type):
         rm = visa.ResourceManager()
         try:
-            if raw == 1:
-                print 'Attempting connection to... "TCPIP0::%s::2001::SOCKET"' %ip
-                inst = rm.open_resource("TCPIP0::%s::2001::SOCKET" %ip,
+            if type == 'raw':
+                print 'Attempting connection to... TCPIP0::%s::2001::SOCKET' % ip
+                inst = rm.open_resource("TCPIP0::%s::2001::SOCKET" % ip,
                                         write_termination='\r\n', read_termination='\r\n')
-            else:
+            elif type == 'ip':
+                print 'Attempting connection to... %s' % ip
                 inst = rm.open_resource(ip)
+            elif type == 'instr':
+                print 'Attempting connection to... TCPIP0::%s::inst0::INST' % ip
+                inst = rm.open_resource('TCPIP0::%s::inst0::INSTR' % ip)
 
         except VisaIOError:
             print 'Problem with connection to %s' %name
             raise
         else:
-            inst.timeout = 10000
+            inst.timeout = 30000
 
         # Test block with default identity command
         try:
@@ -42,15 +54,19 @@ class Instrument(object):
         else:
             return inst
 
-    def execute(self, cmd):
+    def execute(self, cmd, log_read=0):
         try:
             self.instrument.write(b"%s" %cmd)
         except:
             print 'Problem with command.'
+            self.log_it(cmd, 'Failed.')
             raise
         else:
             time.sleep(0.05)
-            self.log_it(cmd, self.instrument.read_raw())
+            if log_read:
+                self.log_it(cmd, self.instrument.read_raw())
+            else:
+                self.log_it(cmd, 'Successful.')
 
     def query(self, cmd):
         try:
@@ -59,8 +75,11 @@ class Instrument(object):
             print 'Problem with query.'
             raise
         else:
+            res = self.instrument.read_raw()
             time.sleep(0.05)
-            self.log_it(cmd, self.instrument.read_raw())
+            self.log_it(cmd, res)
+
+            return res
 
     def close(self):
         try:
@@ -85,7 +104,7 @@ class Instrument(object):
     def __init__(self, **kwargs):
 
         self.log = []
-        required_keys = ['ip_addr', 'name', 'connect_raw']
+        required_keys = ['ip_addr', 'name', 'connect_type']
 
         for k in kwargs.keys():
             if k in required_keys:
@@ -93,11 +112,11 @@ class Instrument(object):
 
         if 'name' not in self.__dict__.keys():
             self.name = 'Default'
-        if 'connect_raw' not in self.__dict__.keys():
-            self.connect_raw = 0
+        if 'connect_type' not in self.__dict__.keys():
+            self.connect_type = 'instr'
 
         try:
-            self.instrument = self.connect(self.ip_addr, self.name, raw=self.connect_raw)
+            self.instrument = self.connect(self.ip_addr, self.name, type=self.connect_type)
         except AttributeError:
             raise MissingParameterError('Missing required parameter',
                                         'IP Address Missing. Use ip_addr as keyword argument')
