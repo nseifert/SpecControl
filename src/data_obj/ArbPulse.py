@@ -7,7 +7,9 @@ class ArbPulse(object):
     def genpulse(self):
 
         def chirp(t, v_min, v_max, chirp_len):
-            return np.cos(v_min*t + 0.5*(v_max-v_min)/chirp_len*t**2)
+            print t
+
+            return np.cos(2*np.pi*v_min*t + 2*np.pi*(v_max-v_min)*(t**2)/(2*chirp_len))
 
         self.total_len = self.prebuffer + self.postbuffer + self.chirp_len
         if self.mk1:
@@ -17,7 +19,6 @@ class ArbPulse(object):
 
         pulse = np.zeros((self.total_len*self.time_multiplier * self.s_rate, 1+int(self.mk1)+int(self.mk2)))
         timebase = np.linspace(0, self.total_len * self.time_multiplier, np.shape(pulse)[0])
-
 
         if self.mk1:
             MK1_START = self.prebuffer * self.time_multiplier
@@ -31,7 +32,10 @@ class ArbPulse(object):
 
         PULSE_END = PULSE_START + self.chirp_len * self.time_multiplier
         pulse_mask = np.where(np.logical_and(timebase >= PULSE_START, timebase <= PULSE_END))
-        pulse[pulse_mask,0] = chirp(timebase[pulse_mask],
+
+        print pulse_mask
+
+        pulse[pulse_mask, 0] = chirp(timebase[pulse_mask]-timebase[pulse_mask][0],
                                   self.chirp_freq[0] * self.freq_multiplier,
                                   self.chirp_freq[1] * self.freq_multiplier,
                                   PULSE_END-PULSE_START)
@@ -41,7 +45,7 @@ class ArbPulse(object):
             MK2_END = MK2_START + self.mk2_len * self.time_multiplier
             pulse[np.where(np.logical_and(timebase >= MK2_START, timebase <= MK2_END)), 2] = 1.0
 
-        return pulse
+        return np.tile(pulse,(self.frames, 1))
 
     def genfilename(self):
         t_mults = {str(1.0E-6): 'us', str(1.0E-9): 'ns', str(1.0E-3): 'ms', str(1.0):'s'}
@@ -66,21 +70,21 @@ class ArbPulse(object):
         req_defaults = {'s_rate': 12.0E9,   # Sample Rate
                         'time_multiplier': 1.0E-6,  # Microseconds
                         'freq_multiplier': 1.0E6,  # MHz
-                        'frames': 1,  # Number of frames
+                        'frames': 6,  # Number of frames
 
                         'channel': 1,  # ARB channel the pulse is meant for
 
                         'chirp_freq': [1000.0, 3000.0],  # Frequency bounds of chirp
-                        'chirp_len': 4.0, # Length of chirp in units of time_multiplier
+                        'chirp_len': 4.0,  # Length of chirp in units of time_multiplier
 
                         'prebuffer': 1.0,  # Time between start of pulse seq and first non-zero bit
                         'postbuffer': 40.0,  # Time between last non-zero bit and the end of pulse seq
 
-                        'mk1': False,  # Boolean for generating marker 1
+                        'mk1': True,  # Boolean for generating marker 1
                         'mk1_len': 0.5, # Length of marker 1 in units of time_multiplier
                         'mk1_chirp_gap': 0.1,  # Gap between end of marker 1 and pulse
 
-                        'mk2': False,  # Same as mk1
+                        'mk2': True,  # Same as mk1
                         'mk2_len': 0.5,
                         'mk2_chirp_gap': 0.1, # Gap between end of pulse and marker 2
 
@@ -101,4 +105,3 @@ class ArbPulse(object):
             self.filename = self.genfilename()
         else:
             self.filename = kwargs['filename']
-

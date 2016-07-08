@@ -15,7 +15,7 @@ class AWG(Instrument):
 
     def set_srate(self, chan, srate="12E9"):
         self.execute(":AWGC:RRAT 22.222222E+3")  # Set max repetition rate for DAC
-        self.execute(":SOUR%s:FREQ %.1g" %(chan, srate))
+        self.execute(":SOUR%s:FREQ %.1g" %(chan, float(srate)))
 
     def set_ref(self, chan):
         self.execute(":AWGC:CLOC:SOUR INT")
